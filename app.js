@@ -15,10 +15,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 
-//const signinRouter = require('./routes/signin');
+const signRouter = require('./routes/sign');
 
 
-//app.use('/',signinRouter);
+app.use('/',signRouter);
 
 //404처리 미들웨어
 app.use((req,res,next)=>{
