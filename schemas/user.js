@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
+const { Types: { ObjectId }} = Schema;
 const userSchema = new Schema({
   nick: {
     type: String,
@@ -15,12 +16,17 @@ const userSchema = new Schema({
   password: {
     type: String,
     required: true,
-    unique: true,
   },
   createdAt: {
     type: Date,
     default: Date.now,
   },
+  belongedRooms:[
+    {
+        type:ObjectId,
+        ref:'Message'
+    }
+  ],
 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -14,11 +14,11 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+const webSocket = require('./socket');
+const indexRouter = require('./routes');
 
-const signRouter = require('./routes/sign');
 
-
-app.use('/',signRouter);
+app.use('/',indexRouter);
 
 //404처리 미들웨어
 app.use((req,res,next)=>{
@@ -33,7 +33,8 @@ app.use((err,req,res)=>{
     res.status(err.status || 500);
     res.render('error');
 });
-app.listen(app.get('port'),()=>{
+const server = app.listen(app.get('port'),()=>{
     console.log(app.get('port'),'번 포트가 실행 중 입니다.');
 })
 
+webSocket(server,app);
