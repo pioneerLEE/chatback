@@ -50,13 +50,15 @@ router.post('/newroom',async(req,res,next)=>{
             creator:userId
         }).populate('participants');
         await room.save();
-        io.of('/chat').join(room._id);
+        
+        io.of('/room').emit('newRoom',room);
+        //io.
+        //socket.join(roomId);
         //유저 db에 유저가 속한 채팅 목록에 추가
         [exUser] = await User.find({_id:userId});
         await exUser.belongedRooms.push(room._id);
         await User.updateOne({_id:userId},{belongedRooms:exUser.belongedRooms});
         //다른 사람들의 리스트에 socket으로 새로 추가된 방 데이터 보내주기
-        io.of('/room').emit('newRoom',room);
         return res.status(201).json(room);
     }catch(error){
         next(error);
