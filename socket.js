@@ -3,11 +3,23 @@ const SocketIo =require('socket.io');
 module.exports = (server,app) =>{
     const io = SocketIo(server, {path:'/socket.io'});
     app.set('io',io);
+    const room = io.of('/room');
+
     const chat = io.of('/chat');
+
+    room.on('connection',(socket)=>{
+        console.log('room 네임스페이스 접속');
+
+        socket.on('disconnect',()=>{
+            console.log('room 네임스페이스 접속 해체');
+        });
+        socket.on('channel1', (data) => {
+            console.log('Greetings from RN app', data);
+        })
+    })
 
     chat.on('connection',(socket)=>{
         console.log('chat 네임스페이스 접속');
-        const req = socket.request;
     })
 
     io.on('connection',(socket)=>{
@@ -21,7 +33,7 @@ module.exports = (server,app) =>{
             console.log('Greetings from RN app', data);
         })
         socket.on('error',(error)=>{
-            console.log(data);
+            console.log(error);
         });
     })
 }

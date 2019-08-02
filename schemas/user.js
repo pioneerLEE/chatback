@@ -24,7 +24,7 @@ const userSchema = new Schema({
   belongedRooms:[
     {
         type:ObjectId,
-        ref:'Message'
+        ref:'Room'
     }
   ],
 });

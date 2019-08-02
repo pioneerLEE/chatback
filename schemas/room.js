@@ -14,7 +14,6 @@ const roomSchema = new Schema({
     creator:{
         type:ObjectId,
         required: true,
-        unique:true,
         ref: 'User'
     },
     //대화된 message id 목록
