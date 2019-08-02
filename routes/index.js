@@ -52,8 +52,10 @@ router.post('/newroom',async(req,res,next)=>{
         await room.save();
         
         io.of('/room').emit('newRoom',room);
+        
         //io.
         //socket.join(roomId);
+
         //유저 db에 유저가 속한 채팅 목록에 추가
         [exUser] = await User.find({_id:userId});
         await exUser.belongedRooms.push(room._id);
@@ -72,9 +74,11 @@ router.patch('/room/:id',async(req,res,next)=>{
     try{
         const exRoom = await Room.findOne({_id:roomId});
         const exUser = await User.findOne({_id:userId});
+
         await exRoom.participants.push(userId);
         await Room.update({_id:roomId},{participants:exRoom.participants});
-        io.of('/chat').join(roomId);
+
+        io.of('/chat').socket.join(roomId);
         io.of('/chat').to(roomId).emit('join',exUser);
         return res.send(202);
     }catch(error){
@@ -144,7 +148,16 @@ router.post('/room/:id/message',async(req,res,next)=>{
         io.of('/chat').to(roomId).emit('chat',message);
         res.send('200');
     }catch(error){
-
+        next(error);
+    }
+});
+//특정 room 정보 가지고 오기
+router.post('/room/:id',async(req,res,next)=>{
+    try{
+        const Room = await Room.find({_id:req.params.id});
+        res.status(201).json(Room).populate('participants');
+    }catch(error){
+        next(error);
     }
 })
 

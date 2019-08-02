@@ -18,10 +18,6 @@ module.exports = (server,app) =>{
         })
     })
 
-    chat.on('connection',(socket)=>{
-        console.log('chat 네임스페이스 접속');
-    })
-
     io.on('connection',(socket)=>{
         const req = socket.request;
         const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
