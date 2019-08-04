@@ -41,46 +41,69 @@ router.post('/signup',async(req,res,next)=>{
 //채팅방 만들기
 router.post('/newroom',async(req,res,next)=>{
     const { userId } = req.body;
-    const io = req.app.get('io');
+    const room = req.app.get('io').of('/room');
     try{
-        const room = await new Room({
+        const newRoom = await new Room({
             participants:[
                 userId
             ],
             creator:userId
         }).populate('participants');
-        await room.save();
+        await newRoom.save();
         
-        io.of('/room').emit('newRoom',room);
-        
-        //io.
-        //socket.join(roomId);
+        room.emit('newRoom',newRoom);
 
         //유저 db에 유저가 속한 채팅 목록에 추가
         [exUser] = await User.find({_id:userId});
-        await exUser.belongedRooms.push(room._id);
+        await exUser.belongedRooms.push(newRoom._id);
         await User.updateOne({_id:userId},{belongedRooms:exUser.belongedRooms});
         //다른 사람들의 리스트에 socket으로 새로 추가된 방 데이터 보내주기
-        return res.status(201).json(room);
+        return res.status(201).json(newRoom);
     }catch(error){
         next(error);
     }
 });
 //채팅 참가하기 https://github.com/typicode/json-server/issues/258 참고해보기
+
 router.patch('/room/:id',async(req,res,next)=>{
     const { userId } = req.body;
     const roomId = req.params.id;
-    const io = req.app.get('io');
+    const chat = req.app.get('io').of('/chat');
     try{
         const exRoom = await Room.findOne({_id:roomId});
         const exUser = await User.findOne({_id:userId});
 
         await exRoom.participants.push(userId);
         await Room.update({_id:roomId},{participants:exRoom.participants});
+        chat.on('connection',socket=>{
+            socket.join(roomId);
+        })
+        chat.to(roomId).emit('join',exUser);
 
-        io.of('/chat').socket.join(roomId);
-        io.of('/chat').to(roomId).emit('join',exUser);
         return res.send(202);
+    }catch(error){
+        next(error);
+    }
+});
+//채팅 보내기
+router.post('/room/:id/message',async(req,res,next)=>{
+    const {userId, category, messageData } = req.body;
+    const roomId = req.params.id
+    const chat = req.app.get('io').of('/chat');
+    //보내는 유저 id, 메시지가 보내지는 방 id, category, messageDate
+    try{
+        //message 생성
+        const message = await new Message({
+            creator:userId,
+            room:roomId,
+            category,
+            messageData
+        }); 
+        //해당 메시지 같은 채팅 유저들에게 전송(본인 빼고)
+        //chat.socket.broadcast.to(roomId).emit('chat',message);
+        //해당 메시지 같은 채팅 유저들에게 전송(본인 포함)
+        chat.to(roomId).emit('chat',message)
+        res.send('200');
     }catch(error){
         next(error);
     }
@@ -89,7 +112,7 @@ router.patch('/room/:id',async(req,res,next)=>{
 router.post('/room/:id',async(req,res,next)=>{
     const { userId } = req.body;
     const roomId = req.params.id;
-    const io = req.app.get('io');
+    const chat = req.app.get('io').of('/chat');
     try{
         //방 불러오기
         const exRoom = await Room.findOne({_id:roomId});
@@ -103,18 +126,14 @@ router.post('/room/:id',async(req,res,next)=>{
             Room.remove({_id:roomId});
         }else{
             await Room.update({_id:roomId},{participants:exRoom.participants});
+            chat.socket.broadcast.to(roomId).emit('exit',exUser);
         }
-        //유저 belongedRooms에서 roomId 삭제
         const deletRoomIndex = await exUser.belongedRooms.findIndex((k)=>{
             return k == roomId;
         });
         await exUser.belongedRooms.splice(deletRoomIndex,1);
         await User.update({_id:userId},{belongedRooms:exUser.belongedRooms});
-
-
-        //삭제 후 chat namespace에 'user님이 방을 나갔습니다. 라고 socket 보내기
-        io.of('/room').leave(roomId);
-        io.of('/room').to(roomId).emit('exit',exUser);    
+        chat.socket.leave(roomId);  
         return res.send(202);
     }catch(error){
         next(error);
@@ -134,7 +153,7 @@ router.get('/roomlist',async(req,res,next)=>{
 router.post('/room/:id/message',async(req,res,next)=>{
     const {userId, category, messageData } = req.body;
     const roomId = req.params.id
-    const io = req.app.get('io');
+    const chat = req.app.get('io').of('/chat');
     //보내는 유저 id, 메시지가 보내지는 방 id, category, messageDate
     try{
         //message 생성
@@ -144,18 +163,20 @@ router.post('/room/:id/message',async(req,res,next)=>{
             category,
             messageData
         }); 
-        //해당 메시지 같은 채팅 유저들에게 전송
-        io.of('/chat').to(roomId).emit('chat',message);
+        //해당 메시지 같은 채팅 유저들에게 전송(본인 빼고)
+        //chat.socket.broadcast.to(roomId).emit('chat',message);
+        //해당 메시지 같은 채팅 유저들에게 전송(본인 포함)
+        chat.to(roomId).emit('chat',message)
         res.send('200');
     }catch(error){
         next(error);
     }
 });
 //특정 room 정보 가지고 오기
-router.post('/room/:id',async(req,res,next)=>{
+router.get('/room/:id',async(req,res,next)=>{
     try{
-        const Room = await Room.find({_id:req.params.id});
-        res.status(201).json(Room).populate('participants');
+        const room = await Room.find({_id:req.params.id});
+        res.status(201).json(room);
     }catch(error){
         next(error);
     }

@@ -16,13 +16,6 @@ const roomSchema = new Schema({
         required: true,
         ref: 'User'
     },
-    //대화된 message id 목록
-    messages:[
-        {
-            type:ObjectId,
-            ref:'Message'
-        }
-    ],
     //생성된 시간
     createAt:{
         type: Date,

@@ -21,12 +21,12 @@ const messageSchema = new Schema({
     },
     //보내지는 데이터
     messageData:{
-        type: String,
+        type: Object,
     },
     //생성 시간
     createAt:{
         type: Date,
-        default: Date.now,
+        default: Date(),
     },
 });
 
