@@ -44,14 +44,12 @@ router.post('/newroom',async(req,res,next)=>{
     const room = req.app.get('io').of('/room');
     try{
         const newRoom = await new Room({
-            participants:[
-                userId
-            ],
             creator:userId
-        }).populate('participants');
+        })
         await newRoom.save();
+        const [addRoom] = await Room.find({_id:newRoom._id}).populate('creator')
         
-        room.emit('newRoom',newRoom);
+        room.emit('newRoom',addRoom);
 
         //유저 db에 유저가 속한 채팅 목록에 추가
         [exUser] = await User.find({_id:userId});
@@ -118,22 +116,27 @@ router.post('/room/:id',async(req,res,next)=>{
         const exRoom = await Room.findOne({_id:roomId});
         const exUser = await User.findOne({_id:userId});
         //방 participants에서 userId 삭제
-        const deletUserIndex = await exRoom.participants.findIndex((k)=>{
+        const deleteUserIndex = await exRoom.participants.findIndex((k)=>{
             return k == userId;
         });
-        await exRoom.participants.splice(deletUserIndex,1);
-        if(exRoom.participants,length===0){
-            Room.remove({_id:roomId});
+        console.log('deleteUserIndex',deleteUserIndex);
+        await exRoom.participants.splice(deleteUserIndex,1);
+        console.log(await exRoom.participants.splice(deleteUserIndex,1));
+        if(exRoom.participants.length===0){ //현재 방에 아무도 없을 경우
+            await Room.remove({_id:roomId});
         }else{
             await Room.update({_id:roomId},{participants:exRoom.participants});
-            chat.socket.broadcast.to(roomId).emit('exit',exUser);
+            chat.on('connection',socket=>{
+                socket.broadcast.to(roomId).emit('exit',exUser);
+                socket.leave(roomId);  
+            }); 
         }
-        const deletRoomIndex = await exUser.belongedRooms.findIndex((k)=>{
+        const deleteRoomIndex = await exUser.belongedRooms.findIndex((k)=>{
             return k == roomId;
         });
-        await exUser.belongedRooms.splice(deletRoomIndex,1);
+        await exUser.belongedRooms.splice(deleteRoomIndex,1);
         await User.update({_id:userId},{belongedRooms:exUser.belongedRooms});
-        chat.socket.leave(roomId);  
+        
         return res.send(202);
     }catch(error){
         next(error);
